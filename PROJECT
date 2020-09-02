@@ -1,0 +1,7 @@
+domain: io
+repo: hf-ec2-vmcontroller
+resources:
+- group: hobbyfarm
+  kind: VirtualMachine
+  version: v1
+version: "2"
