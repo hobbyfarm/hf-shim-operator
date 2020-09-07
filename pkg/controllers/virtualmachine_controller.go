@@ -192,7 +192,7 @@ func (r *VirtualMachineReconciler) launchInstance(ctx context.Context,
 		}
 		// update vm spec with Keypair SecretName
 		vm.Spec.KeyPair = keyPairName
-		vm.Annotations["secret-provisioned"] = "true"
+		vm.Labels["secret-provisioned"] = "true"
 
 	}
 
@@ -344,6 +344,7 @@ func (r *VirtualMachineReconciler) fetchVMDetails(ctx context.Context,
 		return status, fmt.Errorf("VM still not running")
 	}
 
+	vm.Labels["ready"] = "true"
 	// VM is provisioned and we have all the endpoint info we needed //
 	return status, nil
 }
@@ -393,6 +394,6 @@ func (r *VirtualMachineReconciler) createImportKeyPair(ctx context.Context, pubK
 }
 
 func keyCreationDone(vm *hfv1.VirtualMachine, key string) (ok bool) {
-	_, ok = vm.Annotations[key]
+	_, ok = vm.Labels[key]
 	return ok
 }

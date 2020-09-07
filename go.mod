@@ -3,10 +3,8 @@ module github.com/ibrokethecloud/hf-ec2-vmcontroller
 go 1.13
 
 replace (
-	github.com/hobbyfarm/gargantua => ../gargantua
 	k8s.io/client-go => k8s.io/client-go v0.17.2
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.5.0
-  github.com/ibrokethecloud/ec2-operator => ../ec2-operator
 )
 
 require (
@@ -18,8 +16,6 @@ require (
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/gorilla/handlers v1.4.0 // indirect
 	github.com/gorilla/mux v1.7.1 // indirect
-	github.com/hobbyfarm/gargantua v0.0.0-00010101000000-000000000000
-	github.com/ibrokethecloud/ec2-operator v0.0.0-20200829034423-611a915b4916
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jetstack/cert-manager v0.7.2 // indirect
 	github.com/knative/build v0.6.0 // indirect
