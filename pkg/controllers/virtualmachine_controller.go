@@ -75,6 +75,27 @@ func (r *VirtualMachineReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	// initialize status //
 	status := vm.Status.DeepCopy()
 
+	// we only delete VMs that are tainted (and that also haven't already been deleted)
+	// tainting occurs when a session ends, and gargantua marks the vm as tainted, indicating recycling can occur
+	if vm.Status.Tainted && vm.ObjectMeta.DeletionTimestamp.IsZero() {
+		// deprov logic
+		// first, ensure the vm is not ready
+		if vm.Labels["ready"] != "false" {
+			vm.Labels["ready"] = "false"
+			if err := r.Update(ctx, vm); err != nil {
+				log.Error(fmt.Errorf("ErrUpdate"), "Error updating labels of VM")
+				return ctrl.Result{}, nil
+			}
+		}
+
+		// now that the vm is not ready, we can proceed with deleting it
+		if err := r.Delete(ctx, vm); err != nil {
+			log.Error(fmt.Errorf("ErrDelete"), "Error deleting VM")
+			return ctrl.Result{}, nil
+		}
+		log.Info("VM deleted")
+	}
+
 	if vm.ObjectMeta.DeletionTimestamp.IsZero() {
 		// provisioning logic
 		if vm.Status.Status == hfv1.VmStatusRFP {
