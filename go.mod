@@ -8,16 +8,15 @@ replace (
 )
 
 require (
-	github.com/appscode/jsonpatch v1.0.1 // indirect
 	github.com/go-logr/logr v0.1.0
-	github.com/hobbyfarm/gargantua v0.1.7
+	github.com/hobbyfarm/gargantua v0.1.8
 	github.com/ibrokethecloud/ec2-operator v0.0.0-20200907031959-a9f8469f5710
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
+	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.17.2
 	k8s.io/apimachinery v0.17.2
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
 	sigs.k8s.io/controller-runtime v0.5.0
-	sigs.k8s.io/testing_frameworks v0.1.2 // indirect
 )
