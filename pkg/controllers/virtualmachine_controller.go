@@ -23,12 +23,14 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ibrokethecloud/hf-ec2-vmcontroller/pkg/utils"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	ec2v1alpha1 "github.com/ibrokethecloud/ec2-operator/pkg/api/v1alpha1"
 
 	"github.com/go-logr/logr"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -358,10 +360,17 @@ func (r *VirtualMachineReconciler) fetchVMDetails(ctx context.Context,
 		status.Hostname = instance.Status.InstanceID
 	}
 	if instance.Status.Status == "provisioned" {
-		status.Status = hfv1.VmStatusRunning
+		//perform VM liveness check before this is ready //
+		ready, err := r.livenessCheck(ctx, vm, instance)
+		if err != nil {
+			return status, err
+		}
+		if ready {
+			status.Status = hfv1.VmStatusRunning
+		}
 	}
 
-	if status.Status != "running" {
+	if status.Status != hfv1.VmStatusRunning {
 		return status, fmt.Errorf("VM still not running")
 	}
 
@@ -417,4 +426,22 @@ func (r *VirtualMachineReconciler) createImportKeyPair(ctx context.Context, pubK
 func keyCreationDone(vm *hfv1.VirtualMachine, key string) (ok bool) {
 	_, ok = vm.Labels[key]
 	return ok
+}
+
+func (r *VirtualMachineReconciler) livenessCheck(ctx context.Context, vm *hfv1.VirtualMachine,
+	instance *ec2v1alpha1.Instance) (ready bool, err error) {
+	keySecret := &v1.Secret{}
+
+	err = r.Get(ctx, types.NamespacedName{Name: vm.Spec.KeyPair, Namespace: provisionNS}, keySecret)
+	if err != nil {
+		return ready, err
+	}
+
+	username := vm.Spec.SshUsername
+	privKey, ok := keySecret.Data["private_key"]
+	if !ok {
+		return ready, fmt.Errorf("private_key not found in secret %s", keySecret.Name)
+	}
+	ready, err = utils.PerformLivenessCheck(instance, username, string(privKey))
+	return ready, err
 }
