@@ -44,9 +44,9 @@ func MergeCloudInit(pubKey string, cloudInit string) (mergedCloudInit string, er
 func PerformLivenessCheck(instance *ec2v1alpha1.Instance, userName string, privateKey string) (ready bool, err error) {
 	var address string
 	if instance.Spec.PublicIPAddress {
-		address = instance.Status.PublicIP
+		address = instance.Status.PublicIP + ":22"
 	} else {
-		address = instance.Status.PrivateIP
+		address = instance.Status.PrivateIP + ":22"
 	}
 
 	rc, err := ssh.NewRemoteConnection(address, userName, privateKey)
