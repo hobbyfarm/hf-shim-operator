@@ -18,17 +18,19 @@ package controllers
 
 import (
 	"context"
+	b64 "encoding/base64"
 	"fmt"
-	"math/rand"
 	"os"
 	"strings"
+
+	"github.com/ibrokethecloud/hf-ec2-vmcontroller/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/types"
 
 	ec2v1alpha1 "github.com/ibrokethecloud/ec2-operator/pkg/api/v1alpha1"
 
 	"github.com/go-logr/logr"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -60,6 +62,7 @@ func init() {
 func (r *VirtualMachineReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	var err error
+	//var ignoreVM bool
 	ctx := context.Background()
 	log := r.Log.WithValues("virtualmachine", req.NamespacedName)
 
@@ -98,36 +101,27 @@ func (r *VirtualMachineReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	if vm.ObjectMeta.DeletionTimestamp.IsZero() {
 		// provisioning logic
-		if vm.Status.Status == hfv1.VmStatusRFP {
+		switch state := vm.Status.Status; state {
+		case hfv1.VmStatusRFP:
 			status, err = r.launchInstance(ctx, vm)
-		} else if vm.Status.Status == hfv1.VmStatusProvisioned {
-			// Lets poll ec2 instance and get details
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		case hfv1.VmStatusProvisioned:
 			status, err = r.fetchVMDetails(ctx, vm)
-		} else {
-			log.Info("vm is not in a valid status will be ignored")
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		case hfv1.VmStatusRunning:
 			return ctrl.Result{}, nil
+		case "default":
+			return ctrl.Result{Requeue: false}, fmt.Errorf("VM in an undefined state. Ignoring")
 		}
-
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
 		vm.Status = *status
-		if err := r.Update(ctx, vm); err != nil {
-			log.Error(fmt.Errorf("ErrUpdate"), "Error Updating status of VM")
-			return ctrl.Result{}, nil
-		}
-		// update status and requeue object so it can
-		// fall through the workflow logic again
-
 	}
-
-	if vm.Status.Status != "running" {
-		// lets requeue to allow it to fall through queue again
-		return ctrl.Result{Requeue: true}, nil
-	}
-
-	return ctrl.Result{}, nil
+	// if ignoreVM is not true.. we need to requeue to make sure we check the
+	// ssh works
+	return ctrl.Result{}, r.Update(ctx, vm)
 }
 
 func (r *VirtualMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -233,12 +227,11 @@ func (r *VirtualMachineReconciler) launchInstance(ctx context.Context,
 // create a managed secret which contains the ssh keys
 func (r *VirtualMachineReconciler) createSecret(ctx context.Context, pubKey string, privKey string,
 	vm *hfv1.VirtualMachine) (keyPairName string, err error) {
-	random := fmt.Sprintf("%08x", rand.Uint32())
 
 	secretData := make(map[string][]byte)
 	secretData["public_key"] = []byte(pubKey)
 	secretData["private_key"] = []byte(privKey)
-	secretName := strings.Join([]string{vm.Name + "-secret", random}, "-")
+	secretName := strings.Join([]string{vm.Name + "-secret"}, "-")
 	keypair := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
@@ -358,10 +351,17 @@ func (r *VirtualMachineReconciler) fetchVMDetails(ctx context.Context,
 		status.Hostname = instance.Status.InstanceID
 	}
 	if instance.Status.Status == "provisioned" {
-		status.Status = hfv1.VmStatusRunning
+		//perform VM liveness check before this is ready //
+		ready, err := r.livenessCheck(ctx, vm, instance)
+		if err != nil {
+			return status, err
+		}
+		if ready {
+			status.Status = hfv1.VmStatusRunning
+		}
 	}
 
-	if status.Status != "running" {
+	if status.Status != hfv1.VmStatusRunning {
 		return status, fmt.Errorf("VM still not running")
 	}
 
@@ -417,4 +417,27 @@ func (r *VirtualMachineReconciler) createImportKeyPair(ctx context.Context, pubK
 func keyCreationDone(vm *hfv1.VirtualMachine, key string) (ok bool) {
 	_, ok = vm.Labels[key]
 	return ok
+}
+
+func (r *VirtualMachineReconciler) livenessCheck(ctx context.Context, vm *hfv1.VirtualMachine,
+	instance *ec2v1alpha1.Instance) (ready bool, err error) {
+	keySecret := &v1.Secret{}
+	var username string
+	err = r.Get(ctx, types.NamespacedName{Name: vm.Spec.KeyPair, Namespace: provisionNS}, keySecret)
+	if err != nil {
+		return ready, err
+	}
+	if len(vm.Spec.SshUsername) != 0 {
+		username = vm.Spec.SshUsername
+	} else {
+		username = "ubuntu"
+	}
+
+	privKey, ok := keySecret.Data["private_key"]
+	if !ok {
+		return ready, fmt.Errorf("private_key not found in secret %s", keySecret.Name)
+	}
+	encodeKey := b64.StdEncoding.EncodeToString(privKey)
+	ready, err = utils.PerformLivenessCheck(instance, username, encodeKey)
+	return ready, err
 }

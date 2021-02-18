@@ -10,7 +10,8 @@ replace (
 require (
 	github.com/go-logr/logr v0.1.0
 	github.com/hobbyfarm/gargantua v0.1.8
-	github.com/ibrokethecloud/ec2-operator v0.0.0-20200907031959-a9f8469f5710
+	github.com/ibrokethecloud/ec2-operator v0.0.0-20200909043908-30b62dc8600c
+	github.com/ibrokethecloud/k3s-operator v0.0.0-20210110055129-f26a2d855653
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect

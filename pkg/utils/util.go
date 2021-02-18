@@ -3,6 +3,9 @@ package utils
 import (
 	"encoding/base64"
 
+	ec2v1alpha1 "github.com/ibrokethecloud/ec2-operator/pkg/api/v1alpha1"
+	"github.com/ibrokethecloud/k3s-operator/pkg/ssh"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -35,4 +38,25 @@ func MergeCloudInit(pubKey string, cloudInit string) (mergedCloudInit string, er
 	mergedCloudInit = base64.StdEncoding.EncodeToString(mergedCloutInitByte)
 
 	return mergedCloudInit, nil
+}
+
+// Perform SSH based liveness checks on the instance
+func PerformLivenessCheck(instance *ec2v1alpha1.Instance, userName string, privateKey string) (ready bool, err error) {
+	var address string
+	if instance.Spec.PublicIPAddress {
+		address = instance.Status.PublicIP + ":22"
+	} else {
+		address = instance.Status.PrivateIP + ":22"
+	}
+
+	rc, err := ssh.NewRemoteConnection(address, userName, privateKey)
+	if err != nil {
+		return ready, err
+	}
+	_, err = rc.Remote("uptime")
+	if err != nil {
+		return ready, err
+	}
+	ready = true
+	return ready, nil
 }
