@@ -23,11 +23,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ibrokethecloud/hf-ec2-vmcontroller/pkg/utils"
+	"github.com/hobbyfarm/hf-shim-operator/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/types"
 
-	ec2v1alpha1 "github.com/ibrokethecloud/ec2-operator/pkg/api/v1alpha1"
+	ec2v1alpha1 "github.com/hobbyfarm/ec2-operator/pkg/api/v1alpha1"
 
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"

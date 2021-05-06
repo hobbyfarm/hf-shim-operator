@@ -1,4 +1,4 @@
-module github.com/ibrokethecloud/hf-ec2-vmcontroller
+module github.com/hobbyfarm/hf-shim-operator
 
 go 1.13
 
@@ -9,6 +9,7 @@ replace (
 
 require (
 	github.com/go-logr/logr v0.1.0
+	github.com/hobbyfarm/ec2-operator v0.0.0-20210503053736-8f6f258f7b24
 	github.com/hobbyfarm/gargantua v0.1.8
 	github.com/ibrokethecloud/ec2-operator v0.0.0-20200909043908-30b62dc8600c
 	github.com/ibrokethecloud/k3s-operator v0.0.0-20210110055129-f26a2d855653

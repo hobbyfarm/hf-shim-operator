@@ -3,7 +3,7 @@ package utils
 import (
 	"encoding/base64"
 
-	ec2v1alpha1 "github.com/ibrokethecloud/ec2-operator/pkg/api/v1alpha1"
+	ec2v1alpha1 "github.com/hobbyfarm/ec2-operator/pkg/api/v1alpha1"
 	"github.com/ibrokethecloud/k3s-operator/pkg/ssh"
 
 	"gopkg.in/yaml.v2"

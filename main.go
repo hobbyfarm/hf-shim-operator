@@ -20,7 +20,7 @@ import (
 	"flag"
 	"os"
 
-	ec2v1alpha1 "github.com/ibrokethecloud/ec2-operator/pkg/api/v1alpha1"
+	ec2v1alpha1 "github.com/hobbyfarm/ec2-operator/pkg/api/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -28,7 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/ibrokethecloud/hf-ec2-vmcontroller/pkg/controllers"
+	"github.com/hobbyfarm/hf-shim-operator/pkg/controllers"
 
 	hfv1 "github.com/hobbyfarm/gargantua/pkg/apis/hobbyfarm.io/v1"
 	// +kubebuilder:scaffold:imports

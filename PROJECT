@@ -1,5 +1,5 @@
 domain: io
-repo: hf-ec2-vmcontroller
+repo: hf-shim-operator
 resources:
 - group: hobbyfarm
   kind: VirtualMachine

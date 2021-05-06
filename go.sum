@@ -173,6 +173,8 @@ github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ
 github.com/hashicorp/golang-lru v0.5.1 h1:0hERBMJE1eitiLkihrMvRVBYAkpHzc/J3QdDN+dAcgU=
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
+github.com/hobbyfarm/ec2-operator v0.0.0-20210503053736-8f6f258f7b24 h1:TSp7vHYtNm6aHFHGwhPVyLqdVEsmlbVZ3TeMkAgyYh8=
+github.com/hobbyfarm/ec2-operator v0.0.0-20210503053736-8f6f258f7b24/go.mod h1:OjZVoL0iRLbaJYi12uITI0/nfFFWBaCmJfYLKjssi7I=
 github.com/hobbyfarm/gargantua v0.1.8 h1:lN7CpZHy4d8nY+bVh1iD3O2POLYGkI7hfSqHEh5ZfNQ=
 github.com/hobbyfarm/gargantua v0.1.8/go.mod h1:cAioMnFiYwHGOT/hh7jHv8++QDqI3XaL+A+lN/vTl1w=
 github.com/hpcloud/tail v1.0.0 h1:nfCOvKYfkgYP8hkirhJocXT2+zOD8yUNjXaWfTlyFKI=
