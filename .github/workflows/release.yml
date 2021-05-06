@@ -63,9 +63,9 @@ jobs:
         run: |
           OWNER=${GITHUB_REPOSITORY%%/*}
           REPO=${GITHUB_REPOSITORY#*/}
-          docker run -v $PWD:/app alpine/helm:3.0.0 package ./chart/hf-shim-operator -d /app/dist --app-version ${{ steps.get_version.outputs.version }} --version ${{ steps.get_version.outputs.version }}
-          docker run -v $PWD:/app quay.io/helmpack/chart-releaser:v0.2.3 cr upload --owner $OWNER --git-repo $REPO --package-path /app/dist --token ${{ secrets.CR_TOKEN }}
-          docker run -v $PWD:/app quay.io/helmpack/chart-releaser:v0.2.3 cr index  --owner $OWNER --git-repo $REPO --package-path /app/dist --charts-repo https://$OWNER.github.io/$REPO --index-path /app/docs/index.yaml
+          docker run -v $PWD:/ alpine/helm:3.0.0 package ./chart/hf-shim-operator -d /app/dist --app-version ${{ steps.get_version.outputs.version }} --version ${{ steps.get_version.outputs.version }}
+          docker run -v $PWD:/ quay.io/helmpack/chart-releaser:v0.2.3 cr upload --owner $OWNER --git-repo $REPO --package-path /app/dist --token ${{ secrets.CR_TOKEN }}
+          docker run -v $PWD:/ quay.io/helmpack/chart-releaser:v0.2.3 cr index  --owner $OWNER --git-repo $REPO --package-path /app/dist --charts-repo https://$OWNER.github.io/$REPO --index-path /app/docs/index.yaml
 
       - name: commit updated index.yaml
         run: |
