@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: gmehta3/hf-shim-operator
+  repository: hobbyfarm/hf-shim-operator
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: v0.1.0
