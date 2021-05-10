@@ -23,7 +23,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hobbyfarm/hf-shim-operator/pkg/utils"
+	dropletv1alpha1 "github.com/ibrokethecloud/droplet-operator/pkg/api/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -51,6 +51,12 @@ type VirtualMachineReconciler struct {
 
 var provisionNS = "hobbyfarm"
 var defaultInstanceType = "t2.medium"
+
+const (
+	secretCreated         = "SecretCreated"
+	importKeyPairCreated  = "ImportKeyPairCreated"
+	defaultDOInstanceType = "s-4vcpu-8gb"
+)
 
 func init() {
 	ns := os.Getenv("HF_NAMESPACE")
@@ -103,6 +109,16 @@ func (r *VirtualMachineReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		// provisioning logic
 		switch state := vm.Status.Status; state {
 		case hfv1.VmStatusRFP:
+			status, err = r.createSecret(ctx, vm)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		case secretCreated:
+			status, err = r.createImportKeyPair(ctx, vm)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		case importKeyPairCreated:
 			status, err = r.launchInstance(ctx, vm)
 			if err != nil {
 				return ctrl.Result{}, err
@@ -129,6 +145,8 @@ func (r *VirtualMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&hfv1.VirtualMachine{}).
 		Owns(&ec2v1alpha1.Instance{}).
 		Owns(&ec2v1alpha1.ImportKeyPair{}).
+		Owns(&dropletv1alpha1.Instance{}).
+		Owns(&dropletv1alpha1.ImportKeyPair{}).
 		Owns(&v1.Secret{}).
 		Complete(r)
 }
@@ -156,23 +174,11 @@ func (r *VirtualMachineReconciler) fetchVMTemplate(ctx context.Context,
 	return vmTemplate, err
 }
 
-// Fetch Instance information //
-func (r *VirtualMachineReconciler) fetchInstance(ctx context.Context,
-	instanceName string) (instance *ec2v1alpha1.Instance, err error) {
-	instance = &ec2v1alpha1.Instance{}
-	err = r.Get(ctx, types.NamespacedName{Name: instanceName, Namespace: provisionNS}, instance)
-	if err != nil {
-		r.Log.Error(fmt.Errorf("Error fetching EC2 Instance: "), instanceName)
-	}
-	return instance, err
-}
-
 // Launch a new EC2 Instance
 func (r *VirtualMachineReconciler) launchInstance(ctx context.Context,
 	vm *hfv1.VirtualMachine) (status *hfv1.VirtualMachineStatus,
 	err error) {
 	status = vm.Status.DeepCopy()
-	var pubKey, privKey string
 	vmTemplate, err := r.fetchVMTemplate(ctx, vm.Spec.VirtualMachineTemplateId)
 	if err != nil {
 		status.Status = "Error Fetching VMTemplate"
@@ -185,34 +191,15 @@ func (r *VirtualMachineReconciler) launchInstance(ctx context.Context,
 		return status, err
 	}
 
-	// Lets build the ssh key secret //
-	// Check avoids recreation of secrets //
-	if !keyCreationDone(vm, "secret-provisioned") {
-		pubKey, privKey, err = util.GenKeyPair()
-		if err != nil {
-			status.Status = "Error generating ssh keypair"
-			return status, err
-		}
-
-		err = r.createImportKeyPair(ctx, pubKey, vm, environment)
-		if err != nil {
-			r.Log.Info("Error creating keypair")
-			return status, err
-		}
-
-		keyPairName, err := r.createSecret(ctx, pubKey, privKey, vm)
-		if err != nil {
-			r.Log.Info("Error during secret creation")
-			return status, err
-		}
-		// update vm spec with Keypair SecretName
-		vm.Spec.KeyPair = keyPairName
-		vm.Labels["secret-provisioned"] = "true"
-
+	// create a associated cloud provider instance //
+	switch environment.Spec.Provider {
+	case "aws":
+		err = r.createEC2Instance(ctx, vm, environment, vmTemplate)
+	case "digitalocean":
+		err = r.createDropletInstance(ctx, vm, environment, vmTemplate)
+	default:
+		err = fmt.Errorf("unsupported environment type. currently support aws and digitalocean environments only")
 	}
-
-	// create a ec2 Instance object //
-	err = r.createEC2Instance(ctx, vm, environment, vmTemplate, pubKey)
 
 	if err != nil {
 		r.Log.Info("Error during instance creation")
@@ -220,224 +207,120 @@ func (r *VirtualMachineReconciler) launchInstance(ctx context.Context,
 	}
 	status.WsEndpoint = environment.Spec.WsEndpoint
 	status.Status = hfv1.VmStatusProvisioned
-
 	return status, nil
 }
 
 // create a managed secret which contains the ssh keys
-func (r *VirtualMachineReconciler) createSecret(ctx context.Context, pubKey string, privKey string,
-	vm *hfv1.VirtualMachine) (keyPairName string, err error) {
+func (r *VirtualMachineReconciler) createSecret(ctx context.Context, vm *hfv1.VirtualMachine) (status *hfv1.VirtualMachineStatus, err error) {
+	status = vm.Status.DeepCopy()
 
-	secretData := make(map[string][]byte)
-	secretData["public_key"] = []byte(pubKey)
-	secretData["private_key"] = []byte(privKey)
-	secretName := strings.Join([]string{vm.Name + "-secret"}, "-")
-	keypair := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: provisionNS,
-		},
-	}
+	_, created := vm.Annotations["secret"]
+	if !created {
+		pubKey, privKey, err := util.GenKeyPair()
 
-	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, keypair, func() error {
-
-		keypair.Data = secretData
-
-		if err := controllerutil.SetControllerReference(vm, keypair, r.Scheme); err != nil {
-			r.Log.Error(err, "unable to set ownerReference for secret")
-			return err
+		if err != nil {
+			status.Status = "Error generating ssh keypair"
+			return status, err
 		}
 
-		return nil
-	}); err != nil {
-		r.Log.Error(fmt.Errorf("Error creating secret "), secretName)
-		return "", err
-	}
-
-	keyPairName = keypair.Name
-	return keyPairName, nil
-}
-
-// create an Ec2 instance managed by the parent VM
-func (r *VirtualMachineReconciler) createEC2Instance(ctx context.Context, vm *hfv1.VirtualMachine,
-	environment *hfv1.Environment, vmTemplate *hfv1.VirtualMachineTemplate, pubKey string) (err error) {
-
-	instance := &ec2v1alpha1.Instance{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      vm.Name,
-			Namespace: provisionNS,
-		},
-	}
-
-	credSecret, ok := environment.Spec.EnvironmentSpecifics["cred_secret"]
-	if !ok {
-		return fmt.Errorf("No cred_secret found in env spec")
-	}
-
-	region, ok := environment.Spec.EnvironmentSpecifics["region"]
-	if !ok {
-		return fmt.Errorf("No region found in env spec")
-	}
-
-	subnet, ok := environment.Spec.EnvironmentSpecifics["subnet"]
-	if !ok {
-		return fmt.Errorf("No subnet found in env spec")
-	}
-
-	ami, ok := environment.Spec.TemplateMapping[vmTemplate.Name]["image"]
-	if !ok {
-		return fmt.Errorf("No ami specified for vm template in env spec")
-	}
-
-	cloudInit, _ := environment.Spec.TemplateMapping[vmTemplate.Name]["cloudInit"]
-
-	if err != nil {
-		return fmt.Errorf("Error merging cloud init")
-	}
-
-	instanceType, ok := environment.Spec.TemplateMapping[vmTemplate.Name]["instanceType"]
-	if !ok {
-		instanceType = defaultInstanceType
-	}
-
-	securityGroup, ok := environment.Spec.EnvironmentSpecifics["vpc_security_group_id"]
-	if !ok {
-		return fmt.Errorf("No vpc_security_group_ip found in environment_specifics")
-	}
-	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, instance, func() error {
-		instance.Spec.Secret = credSecret
-		instance.Spec.SubnetID = subnet
-		instance.Spec.ImageID = ami
-		instance.Spec.Region = region
-		instance.Spec.UserData = cloudInit
-		instance.Spec.SecurityGroupIDS = []string{securityGroup}
-		instance.Spec.InstanceType = instanceType
-		instance.Spec.PublicIPAddress = true
-		instance.Spec.KeyName = vm.Name
-
-		// Set owner //
-		if err := controllerutil.SetControllerReference(vm, instance, r.Scheme); err != nil {
-			r.Log.Error(err, "unable to set ownerReference for instance")
-			return err
+		secretData := make(map[string][]byte)
+		secretData["public_key"] = []byte(pubKey)
+		secretData["private_key"] = []byte(privKey)
+		secretName := strings.Join([]string{vm.Name + "-secret"}, "-")
+		keypair := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: provisionNS,
+			},
 		}
 
-		return nil
-	}); err != nil {
-		r.Log.Error(fmt.Errorf("Error creating insance "), instance.Name)
-		return err
+		if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, keypair, func() error {
+
+			keypair.Data = secretData
+
+			if err := controllerutil.SetControllerReference(vm, keypair, r.Scheme); err != nil {
+				r.Log.Error(err, "unable to set ownerReference for secret")
+				return err
+			}
+
+			return nil
+		}); err != nil {
+			r.Log.Error(fmt.Errorf("Error creating secret "), secretName)
+			return status, err
+		}
+
+		if vm.GetAnnotations() == nil {
+			vm.Annotations = make(map[string]string)
+		}
+
+		vm.Annotations["secretName"] = keypair.Name
+		vm.Annotations["pubKey"] = b64.StdEncoding.EncodeToString([]byte(pubKey))
+		vm.Annotations["secret"] = "created"
+		vm.Spec.KeyPair = keypair.Name
+		status.Status = secretCreated
 	}
-	return nil
+
+	return status, err
 }
 
 // fetch ec2 instance details to update the vm status
 
 func (r *VirtualMachineReconciler) fetchVMDetails(ctx context.Context,
 	vm *hfv1.VirtualMachine) (status *hfv1.VirtualMachineStatus, err error) {
+	cloudProvider, ok := vm.Annotations["cloudProvider"]
+	if !ok {
+		return status, fmt.Errorf("no vm annotation for cloudProvider exists")
+	}
+	switch cloudProvider {
+	case "aws":
+		status, err = r.fetchEC2Instance(ctx, vm)
+	case "digitalocean":
+		status, err = r.fetchDOInstance(ctx, vm)
+	default:
+		return status, fmt.Errorf("unsupported cloud provider in fetchVMDetails")
+	}
+	if err != nil {
+		vm.Labels["ready"] = "true"
+	}
+	// VM is provisioned and we have all the endpoint info we needed //
+	return status, err
+}
+
+func (r *VirtualMachineReconciler) createImportKeyPair(ctx context.Context, vm *hfv1.VirtualMachine) (status *hfv1.VirtualMachineStatus, err error) {
+
 	status = vm.Status.DeepCopy()
 
-	instance, err := r.fetchInstance(ctx, vm.Name)
+	b64PubKey, ok := vm.Annotations["pubKey"]
+	if !ok {
+		return status, fmt.Errorf("unable to find label pubKey on VM")
+	}
+
+	pubKeyByte, err := b64.StdEncoding.DecodeString(b64PubKey)
 	if err != nil {
 		return status, err
 	}
-	if len(instance.Status.PublicIP) > 0 {
-		status.PublicIP = instance.Status.PublicIP
+
+	pubKey := strings.TrimSpace(string(pubKeyByte))
+
+	env, err := r.fetchEnvironment(ctx, status.EnvironmentId)
+	if err != nil {
+		return status, err
 	}
 
-	if len(instance.Status.PrivateIP) > 0 {
-		status.PrivateIP = instance.Status.PrivateIP
+	switch env.Spec.Provider {
+	case "aws":
+		status, err = r.createEC2ImportKeyPair(ctx, vm, env, pubKey)
+	case "digitalocean":
+		status, err = r.createDOImportKeyPair(ctx, vm, env, pubKey)
+	default:
+		err = fmt.Errorf("unsupported environment type. currently support aws and digitalocean environments only")
 	}
 
-	if len(instance.Status.InstanceID) > 0 {
-		status.Hostname = instance.Status.InstanceID
-	}
-	if instance.Status.Status == "provisioned" {
-		//perform VM liveness check before this is ready //
-		ready, err := r.livenessCheck(ctx, vm, instance)
-		if err != nil {
-			return status, err
-		}
-		if ready {
-			status.Status = hfv1.VmStatusRunning
-		}
-	}
-
-	if status.Status != hfv1.VmStatusRunning {
-		return status, fmt.Errorf("VM still not running")
-	}
-
-	vm.Labels["ready"] = "true"
-	// VM is provisioned and we have all the endpoint info we needed //
-	return status, nil
-}
-
-func (r *VirtualMachineReconciler) createImportKeyPair(ctx context.Context, pubKey string, vm *hfv1.VirtualMachine,
-	env *hfv1.Environment) (err error) {
-
-	pubKey = strings.TrimSpace(pubKey)
-	keyPair := &ec2v1alpha1.ImportKeyPair{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      vm.Name,
-			Namespace: provisionNS,
-		},
-	}
-
-	credSecret, ok := env.Spec.EnvironmentSpecifics["cred_secret"]
-	if !ok {
-		return fmt.Errorf("No cred_secret found in env spec")
-	}
-
-	region, ok := env.Spec.EnvironmentSpecifics["region"]
-	if !ok {
-		return fmt.Errorf("No cred_secret found in env spec")
-	}
-
-	if !ok {
-		return fmt.Errorf("No region found in env spec")
-	}
-
-	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, keyPair, func() error {
-		keyPair.Spec.PublicKey = pubKey
-		keyPair.Spec.KeyName = vm.Name
-		keyPair.Spec.Secret = credSecret
-		keyPair.Spec.Region = region
-
-		if err := controllerutil.SetControllerReference(vm, keyPair, r.Scheme); err != nil {
-			r.Log.Error(err, "unable to set ownerReference for keypair")
-			return err
-		}
-		return nil
-	}); err != nil {
-		r.Log.Error(fmt.Errorf("Error creating keypair "), keyPair.Name)
-		return err
-	}
-
-	return nil
+	vm.Annotations["cloudProvider"] = env.Spec.Provider
+	return status, err
 }
 
 func keyCreationDone(vm *hfv1.VirtualMachine, key string) (ok bool) {
 	_, ok = vm.Labels[key]
 	return ok
-}
-
-func (r *VirtualMachineReconciler) livenessCheck(ctx context.Context, vm *hfv1.VirtualMachine,
-	instance *ec2v1alpha1.Instance) (ready bool, err error) {
-	keySecret := &v1.Secret{}
-	var username string
-	err = r.Get(ctx, types.NamespacedName{Name: vm.Spec.KeyPair, Namespace: provisionNS}, keySecret)
-	if err != nil {
-		return ready, err
-	}
-	if len(vm.Spec.SshUsername) != 0 {
-		username = vm.Spec.SshUsername
-	} else {
-		username = "ubuntu"
-	}
-
-	privKey, ok := keySecret.Data["private_key"]
-	if !ok {
-		return ready, fmt.Errorf("private_key not found in secret %s", keySecret.Name)
-	}
-	encodeKey := b64.StdEncoding.EncodeToString(privKey)
-	ready, err = utils.PerformLivenessCheck(instance, username, encodeKey)
-	return ready, err
 }
