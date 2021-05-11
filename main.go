@@ -21,7 +21,7 @@ import (
 	"os"
 
 	ec2v1alpha1 "github.com/hobbyfarm/ec2-operator/pkg/api/v1alpha1"
-
+	dropletv1alpha1 "github.com/ibrokethecloud/droplet-operator/pkg/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -41,7 +41,7 @@ var (
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
-
+	_ = dropletv1alpha1.AddToScheme(scheme)
 	_ = hfv1.AddToScheme(scheme)
 	_ = ec2v1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
