@@ -2,7 +2,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: hf-ec2-vmc-role
+  name: hf-shim-vmc-role
   labels:
     {{- include "hf-ec2-vmcontroller.labels" . | nindent 4 }}
   {{- with .Values.serviceAccount.annotations }}
@@ -40,7 +40,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: hf-ec2-vmc-cluster-role
+  name: hf-shim-vmc-cluster-role
   labels:
     {{- include "hf-ec2-vmcontroller.labels" . | nindent 4 }}
   {{- with .Values.serviceAccount.annotations }}
@@ -62,6 +62,7 @@ rules:
       - watch
   - apiGroups:
       - ec2.cattle.io
+      - droplet.cattle.io
     resources:
       - instances
     verbs:
@@ -74,12 +75,14 @@ rules:
       - watch
   - apiGroups:
       - ec2.cattle.io
+      - droplet.cattle.io
     resources:
       - instances/status
     verbs:
       - get
   - apiGroups:
       - ec2.cattle.io
+      - droplet.cattle.io
     resources:
       - importkeypairs
     verbs:
@@ -92,6 +95,7 @@ rules:
       - watch
   - apiGroups:
       - ec2.cattle.io
+      - droplet.cattle.io
     resources:
       - importkeypairs/status
     verbs:
@@ -112,11 +116,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: hf-ec2-vmc-rolebinding
+  name: hf-shim-vmc-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: hf-ec2-vmc-role
+  name: hf-shim-vmc-role
 subjects:
   - kind: ServiceAccount
     name: {{ include "hf-ec2-vmcontroller.serviceAccountName" . }}
@@ -125,11 +129,11 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: hf-ec2-vmcontroller-crb
+  name: hf-shim-vmcontroller-crb
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: hf-ec2-vmc-cluster-role
+  name: hf-shim-vmc-cluster-role
 subjects:
   - kind: ServiceAccount
     name: {{ include "hf-ec2-vmcontroller.serviceAccountName" . }}

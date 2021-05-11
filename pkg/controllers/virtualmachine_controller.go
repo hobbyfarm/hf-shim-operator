@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	dropletv1alpha1 "github.com/ibrokethecloud/droplet-operator/pkg/api/v1alpha1"
+	"github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -214,8 +215,18 @@ func (r *VirtualMachineReconciler) launchInstance(ctx context.Context,
 func (r *VirtualMachineReconciler) createSecret(ctx context.Context, vm *hfv1.VirtualMachine) (status *hfv1.VirtualMachineStatus, err error) {
 	status = vm.Status.DeepCopy()
 
+	// setup annotations for the first run it doesnt exist
+	if vm.GetAnnotations() == nil {
+		vm.Annotations = make(map[string]string)
+	}
+
 	_, created := vm.Annotations["secret"]
-	if !created {
+	secretName := strings.Join([]string{vm.Name + "-secret"}, "-")
+	existingSecret := &v1.Secret{}
+	err = r.Get(ctx, types.NamespacedName{Namespace: provisionNS, Name: secretName}, existingSecret)
+
+	if !created && errors.IsNotFound(err) {
+		logrus.Info("creating new keypair")
 		pubKey, privKey, err := util.GenKeyPair()
 
 		if err != nil {
@@ -226,7 +237,6 @@ func (r *VirtualMachineReconciler) createSecret(ctx context.Context, vm *hfv1.Vi
 		secretData := make(map[string][]byte)
 		secretData["public_key"] = []byte(pubKey)
 		secretData["private_key"] = []byte(privKey)
-		secretName := strings.Join([]string{vm.Name + "-secret"}, "-")
 		keypair := &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      secretName,
@@ -249,17 +259,16 @@ func (r *VirtualMachineReconciler) createSecret(ctx context.Context, vm *hfv1.Vi
 			return status, err
 		}
 
-		if vm.GetAnnotations() == nil {
-			vm.Annotations = make(map[string]string)
-		}
-
-		vm.Annotations["secretName"] = keypair.Name
 		vm.Annotations["pubKey"] = b64.StdEncoding.EncodeToString([]byte(pubKey))
-		vm.Annotations["secret"] = "created"
-		vm.Spec.KeyPair = keypair.Name
-		status.Status = secretCreated
-	}
 
+	} else {
+		vm.Annotations["pubKey"] = b64.StdEncoding.EncodeToString(existingSecret.Data["public_key"])
+		vm.Spec.KeyPair = secretName
+	}
+	vm.Spec.KeyPair = secretName
+	status.Status = secretCreated
+	vm.Annotations["secret"] = "created"
+	vm.Annotations["secretName"] = secretName
 	return status, err
 }
 
