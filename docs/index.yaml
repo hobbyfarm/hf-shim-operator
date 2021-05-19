@@ -2,6 +2,15 @@ apiVersion: v1
 entries:
   hf-shim-operator:
   - apiVersion: v2
+    appVersion: v0.1.2
+    created: "2021-05-19T19:50:48.682822692Z"
+    description: A Helm chart for Kubernetes
+    digest: 0b6b054161dbf04e151cad381ed719f7c1a982dc5caf36d8eb40e7f7f53744d8
+    name: hf-shim-operator
+    urls:
+    - https://github.com/hobbyfarm/hf-shim-operator/releases/download/hf-shim-operator-v0.1.2/hf-shim-operator-v0.1.2.tgz
+    version: v0.1.2
+  - apiVersion: v2
     appVersion: v0.1.0
     created: "2021-05-06T23:44:02.813790622Z"
     description: A Helm chart for Kubernetes
