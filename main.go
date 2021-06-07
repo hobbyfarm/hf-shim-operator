@@ -37,9 +37,14 @@ import (
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+	threads  int
 )
 
 func init() {
+
+	flag.IntVar(&threads, "threads", 5, "concurrent reconciles to run")
+	flag.Parse()
+
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = dropletv1alpha1.AddToScheme(scheme)
 	_ = hfv1.AddToScheme(scheme)
@@ -71,9 +76,10 @@ func main() {
 	}
 
 	if err = (&controllers.VirtualMachineReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("VirtualMachine"),
-		Scheme: mgr.GetScheme(),
+		Client:  mgr.GetClient(),
+		Log:     ctrl.Log.WithName("controllers").WithName("VirtualMachine"),
+		Scheme:  mgr.GetScheme(),
+		Threads: threads,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VirtualMachine")
 		os.Exit(1)
