@@ -22,6 +22,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
+
+	"k8s.io/client-go/util/workqueue"
 
 	dropletv1alpha1 "github.com/ibrokethecloud/droplet-operator/pkg/api/v1alpha1"
 	"github.com/sirupsen/logrus"
@@ -31,23 +34,24 @@ import (
 	ec2v1alpha1 "github.com/hobbyfarm/ec2-operator/pkg/api/v1alpha1"
 
 	"github.com/go-logr/logr"
+	hfv1 "github.com/hobbyfarm/gargantua/pkg/apis/hobbyfarm.io/v1"
+	"github.com/hobbyfarm/gargantua/pkg/util"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlCtrl "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	hfv1 "github.com/hobbyfarm/gargantua/pkg/apis/hobbyfarm.io/v1"
-	"github.com/hobbyfarm/gargantua/pkg/util"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // VirtualMachineReconciler reconciles a VirtualMachine object
 type VirtualMachineReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log     logr.Logger
+	Scheme  *runtime.Scheme
+	Threads int
 }
 
 var provisionNS = "hobbyfarm"
@@ -64,6 +68,7 @@ func init() {
 	if ns != "" {
 		provisionNS = ns
 	}
+
 }
 
 func (r *VirtualMachineReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -143,6 +148,10 @@ func (r *VirtualMachineReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 func (r *VirtualMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		WithOptions(ctrlCtrl.Options{
+			MaxConcurrentReconciles: r.Threads,
+			RateLimiter:             workqueue.NewItemExponentialFailureRateLimiter(5*time.Second, 10*time.Second),
+		}).
 		For(&hfv1.VirtualMachine{}).
 		Owns(&ec2v1alpha1.Instance{}).
 		Owns(&ec2v1alpha1.ImportKeyPair{}).
