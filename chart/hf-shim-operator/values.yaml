@@ -8,6 +8,8 @@ image:
   repository: hobbyfarm/hf-shim-operator
   pullPolicy: IfNotPresent
 
+threads: 20
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
