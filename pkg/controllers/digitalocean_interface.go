@@ -135,7 +135,7 @@ func (r *VirtualMachineReconciler) createDropletInstance(ctx context.Context, vm
 
 		return nil
 	}); err != nil {
-		r.Log.Error(fmt.Errorf("Error creating instance "), instance.Name)
+		r.Log.Error(fmt.Errorf("error creating instance "), instance.Name)
 		return err
 	}
 	return nil
@@ -204,10 +204,11 @@ func (r *VirtualMachineReconciler) doLivenessCheck(ctx context.Context, vm *hfv1
 
 	if len(instance.Status.PublicIP) > 0 {
 		address = instance.Status.PublicIP + ":22"
+		vm.Annotations["sshEndpoint"] = instance.Status.PublicIP
 	} else {
 		address = instance.Status.PrivateIP + ":22"
 	}
 
-	ready, err = utils.PerformLivenessCheck(address, username, encodeKey)
+	ready, err = utils.PerformLivenessCheck(address, username, encodeKey, "uptime")
 	return ready, err
 }

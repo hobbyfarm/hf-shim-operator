@@ -58,9 +58,12 @@ var provisionNS = "hobbyfarm"
 var defaultInstanceType = "t2.medium"
 
 const (
-	secretCreated         = "SecretCreated"
-	importKeyPairCreated  = "ImportKeyPairCreated"
-	defaultDOInstanceType = "s-4vcpu-8gb"
+	secretCreated              = "SecretCreated"
+	importKeyPairCreated       = "ImportKeyPairCreated"
+	defaultDOInstanceType      = "s-4vcpu-8gb"
+	defaultEquinixInstanceType = "c3.small.x86"
+	defaultEquinixBillingCycle = "hourly"
+	defaultIPXEScriptURL       = "https://raw.githubusercontent.com/ibrokethecloud/custom_pxe/master/shell.ipxe"
 )
 
 func init() {
@@ -207,6 +210,8 @@ func (r *VirtualMachineReconciler) launchInstance(ctx context.Context,
 		err = r.createEC2Instance(ctx, vm, environment, vmTemplate)
 	case "digitalocean":
 		err = r.createDropletInstance(ctx, vm, environment, vmTemplate)
+	case "equinix":
+		err = r.createEquinixInstance(ctx, vm, environment, vmTemplate)
 	default:
 		err = fmt.Errorf("unsupported environment type. currently support aws and digitalocean environments only")
 	}
@@ -294,6 +299,8 @@ func (r *VirtualMachineReconciler) fetchVMDetails(ctx context.Context,
 		status, err = r.fetchEC2Instance(ctx, vm)
 	case "digitalocean":
 		status, err = r.fetchDOInstance(ctx, vm)
+	case "equinix":
+		status, err = r.fetchEquinixInstance(ctx, vm)
 	default:
 		return status, fmt.Errorf("unsupported cloud provider in fetchVMDetails")
 	}
@@ -330,6 +337,8 @@ func (r *VirtualMachineReconciler) createImportKeyPair(ctx context.Context, vm *
 		status, err = r.createEC2ImportKeyPair(ctx, vm, env, pubKey)
 	case "digitalocean":
 		status, err = r.createDOImportKeyPair(ctx, vm, env, pubKey)
+	case "equinix":
+		status, err = r.createEquinixImportKeyPair(ctx, vm, env, pubKey)
 	default:
 		err = fmt.Errorf("unsupported environment type. currently support aws and digitalocean environments only")
 	}

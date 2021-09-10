@@ -40,13 +40,13 @@ func MergeCloudInit(pubKey string, cloudInit string) (mergedCloudInit string, er
 }
 
 // Perform SSH based liveness checks on the instance
-func PerformLivenessCheck(address string, userName string, privateKey string) (ready bool, err error) {
+func PerformLivenessCheck(address string, userName string, privateKey string, command string) (ready bool, err error) {
 
 	rc, err := ssh.NewRemoteConnection(address, userName, privateKey)
 	if err != nil {
 		return ready, err
 	}
-	_, err = rc.Remote("uptime")
+	_, err = rc.Remote(command)
 	if err != nil {
 		return ready, err
 	}

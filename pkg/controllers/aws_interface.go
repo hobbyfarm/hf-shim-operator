@@ -24,9 +24,6 @@ func (r *VirtualMachineReconciler) createEC2ImportKeyPair(ctx context.Context, v
 	}
 
 	region, ok := env.Spec.EnvironmentSpecifics["region"]
-	if !ok {
-		return status, fmt.Errorf("no cred_secret found in env spec")
-	}
 
 	if !ok {
 		return status, fmt.Errorf("no region found in env spec")
@@ -148,6 +145,7 @@ func (r *VirtualMachineReconciler) fetchEC2Instance(ctx context.Context,
 	}
 	if len(instance.Status.PublicIP) > 0 {
 		status.PublicIP = instance.Status.PublicIP
+		vm.Annotations["sshEndpoint"] = instance.Status.PublicIP
 	}
 
 	if len(instance.Status.PrivateIP) > 0 {
@@ -196,10 +194,11 @@ func (r *VirtualMachineReconciler) ec2LivenessCheck(ctx context.Context, vm *hfv
 
 	if len(instance.Status.PublicIP) > 0 {
 		address = instance.Status.PublicIP + ":22"
+		vm.Annotations["sshEndpoint"] = instance.Status.PublicIP
 	} else {
 		address = instance.Status.PrivateIP + ":22"
 	}
 
-	ready, err = utils.PerformLivenessCheck(address, username, encodeKey)
+	ready, err = utils.PerformLivenessCheck(address, username, encodeKey, "uptime")
 	return ready, err
 }
