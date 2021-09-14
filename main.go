@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	equinixv1alpha1 "github.com/hobbyfarm/metal-operator/pkg/api/v1alpha1"
 	"os"
 
 	ec2v1alpha1 "github.com/hobbyfarm/ec2-operator/pkg/api/v1alpha1"
@@ -49,6 +50,7 @@ func init() {
 	_ = dropletv1alpha1.AddToScheme(scheme)
 	_ = hfv1.AddToScheme(scheme)
 	_ = ec2v1alpha1.AddToScheme(scheme)
+	_ = equinixv1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

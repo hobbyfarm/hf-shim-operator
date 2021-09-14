@@ -63,6 +63,7 @@ rules:
   - apiGroups:
       - ec2.cattle.io
       - droplet.cattle.io
+      - equinix.cattle.io
     resources:
       - instances
     verbs:
@@ -76,6 +77,7 @@ rules:
   - apiGroups:
       - ec2.cattle.io
       - droplet.cattle.io
+      - equinix.cattle.io
     resources:
       - instances/status
     verbs:
@@ -83,6 +85,7 @@ rules:
   - apiGroups:
       - ec2.cattle.io
       - droplet.cattle.io
+      - equinix.cattle.io
     resources:
       - importkeypairs
     verbs:
@@ -96,6 +99,7 @@ rules:
   - apiGroups:
       - ec2.cattle.io
       - droplet.cattle.io
+      - equinix.cattle.io
     resources:
       - importkeypairs/status
     verbs:
