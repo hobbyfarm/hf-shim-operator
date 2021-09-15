@@ -4,6 +4,7 @@ import (
 	"context"
 	b64 "encoding/base64"
 	"fmt"
+	"strconv"
 
 	ec2v1alpha1 "github.com/hobbyfarm/ec2-operator/pkg/api/v1alpha1"
 	hfv1 "github.com/hobbyfarm/gargantua/pkg/apis/hobbyfarm.io/v1"
@@ -118,6 +119,16 @@ func (r *VirtualMachineReconciler) createEC2Instance(ctx context.Context, vm *hf
 		instance.Spec.InstanceType = instanceType
 		instance.Spec.PublicIPAddress = true
 		instance.Spec.KeyName = keyPair
+		instance.Spec.DeleteVolumesOnTermination = true
+		rootDisk, ok := environment.Spec.TemplateMapping[vmTemplate.Name]["rootDiskSize"]
+		if ok {
+			rootDiskSize, err := strconv.Atoi(rootDisk)
+			if err != nil {
+				r.Log.Error(err, "unable to convert rootDiskSize to int")
+				return err
+			}
+			instance.Spec.RootDiskSize = rootDiskSize
+		}
 
 		// Set owner //
 		if err := controllerutil.SetControllerReference(vm, instance, r.Scheme); err != nil {

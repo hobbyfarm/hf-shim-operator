@@ -4,6 +4,7 @@ go 1.16
 
 replace (
 	github.com/go-logr/logr => github.com/go-logr/logr v0.1.0
+	github.com/hobbyfarm/ec2-operator => github.com/ibrokethecloud/ec2-operator-1 v0.1.4-0.20210915032141-7e2f5deccd0a
 	k8s.io/api => k8s.io/api v0.17.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.17.2
 	k8s.io/client-go => k8s.io/client-go v0.17.2
