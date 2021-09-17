@@ -64,6 +64,8 @@ const (
 	defaultEquinixInstanceType = "c3.small.x86"
 	defaultEquinixBillingCycle = "hourly"
 	defaultIPXEScriptURL       = "https://raw.githubusercontent.com/ibrokethecloud/custom_pxe/master/shell.ipxe"
+
+	instanceTypeAnnotation     = "hobbyfarm.io/instance-type"
 )
 
 func init() {

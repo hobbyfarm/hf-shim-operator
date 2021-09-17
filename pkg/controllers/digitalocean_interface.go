@@ -72,6 +72,8 @@ func (r *VirtualMachineReconciler) createDropletInstance(ctx context.Context, vm
 		instanceType = defaultDOInstanceType
 	}
 
+	vm.Annotations[instanceTypeAnnotation] = instanceType
+
 	slug, ok := environment.Spec.TemplateMapping[vmTemplate.Name]["image"]
 	if !ok {
 		return fmt.Errorf("no image specified for vm template in env spec")

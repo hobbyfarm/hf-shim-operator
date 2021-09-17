@@ -88,6 +88,8 @@ func (r *VirtualMachineReconciler) createEquinixInstance(ctx context.Context, vm
 		instanceType = defaultEquinixInstanceType
 	}
 
+	vm.Annotations[instanceTypeAnnotation] = instanceType
+
 	equinixKeyPair := &equinixv1alpha1.ImportKeyPair{}
 	err = r.Get(ctx, types.NamespacedName{Namespace: provisionNS, Name: vm.Annotations["importKeyPair"]}, equinixKeyPair)
 	if err != nil {
