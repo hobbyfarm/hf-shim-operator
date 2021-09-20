@@ -99,6 +99,8 @@ func (r *VirtualMachineReconciler) createEC2Instance(ctx context.Context, vm *hf
 		instanceType = defaultInstanceType
 	}
 
+	vm.Annotations[instanceTypeAnnotation] = instanceType
+
 	securityGroup, ok := environment.Spec.EnvironmentSpecifics["vpc_security_group_id"]
 	if !ok {
 		return fmt.Errorf("no vpc_security_group_ip found in environment_specifics")
