@@ -190,8 +190,6 @@ github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ
 github.com/hashicorp/golang-lru v0.5.4 h1:YDjusn29QI/Das2iO9M0BHnIbxPeyuCHsjMW+lJfyTc=
 github.com/hashicorp/golang-lru v0.5.4/go.mod h1:iADmTwqILo4mZ8BN3D2Q6+9jd8WM5uGBxy+E8yxSoD4=
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
-github.com/hobbyfarm/ec2-operator v0.0.0-20210503053736-8f6f258f7b24 h1:TSp7vHYtNm6aHFHGwhPVyLqdVEsmlbVZ3TeMkAgyYh8=
-github.com/hobbyfarm/ec2-operator v0.0.0-20210503053736-8f6f258f7b24/go.mod h1:OjZVoL0iRLbaJYi12uITI0/nfFFWBaCmJfYLKjssi7I=
 github.com/hobbyfarm/gargantua v0.1.8 h1:lN7CpZHy4d8nY+bVh1iD3O2POLYGkI7hfSqHEh5ZfNQ=
 github.com/hobbyfarm/gargantua v0.1.8/go.mod h1:cAioMnFiYwHGOT/hh7jHv8++QDqI3XaL+A+lN/vTl1w=
 github.com/hobbyfarm/metal-operator v0.0.0-20210908081856-4770843190f5 h1:GuzNlIlW3uQEO+k5XTzeb0zJii8MIEeE0An4T4AdRB0=
@@ -200,6 +198,8 @@ github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpO
 github.com/ibrokethecloud/droplet-operator v0.0.0-20210505085619-7a30ebe921b2 h1:rCRB6N4aDePf6RWmkQUXuPVN6Ytt4JBLCtMTRCJjLis=
 github.com/ibrokethecloud/droplet-operator v0.0.0-20210505085619-7a30ebe921b2/go.mod h1:0YhcBhcc1uKpBUZmA/Jb9UogdHxyhpqu8EurHOeIWW8=
 github.com/ibrokethecloud/ec2-operator v0.0.0-20200909043908-30b62dc8600c/go.mod h1:V+n2NYLZ7AF/zyjx4iL+kUvvwEPyaVtTTC8T2kr4JBk=
+github.com/ibrokethecloud/ec2-operator-1 v0.1.4-0.20210915032141-7e2f5deccd0a h1:CXAIYHPLqQnf8zPE8tUOuLEWoKhO3H9k6Px76YBqgVo=
+github.com/ibrokethecloud/ec2-operator-1 v0.1.4-0.20210915032141-7e2f5deccd0a/go.mod h1:rZO+se+w/jgHfYFRH3RxEg2Y+jmkL4r0CLQBz+PjkUM=
 github.com/ibrokethecloud/k3s-operator v0.0.0-20210110055129-f26a2d855653 h1:cdYLGONfrTZUCqf22yv7XSxt46pEPIVhT0BgrpgCuMc=
 github.com/ibrokethecloud/k3s-operator v0.0.0-20210110055129-f26a2d855653/go.mod h1:lBTiFsPMSQe75i9jLRY3aflkmcRB/1/MlaEL98eSl4I=
 github.com/imdario/mergo v0.3.5/go.mod h1:2EnlNZ0deacrJVfApfmtdGgDfMuh/nq6Ok1EcJh5FfA=
