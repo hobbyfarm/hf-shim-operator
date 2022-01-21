@@ -26,7 +26,7 @@ func (r *VirtualMachineReconciler) createDOImportKeyPair(ctx context.Context, vm
 	keyPair := &dropletv1alpha1.ImportKeyPair{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vm.Name,
-			Namespace: provisionNS,
+			Namespace: vm.Namespace,
 		},
 	}
 
@@ -63,7 +63,7 @@ func (r *VirtualMachineReconciler) createDropletInstance(ctx context.Context, vm
 	instance := &dropletv1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vm.Name,
-			Namespace: provisionNS,
+			Namespace: vm.Namespace,
 		},
 	}
 
@@ -106,7 +106,7 @@ func (r *VirtualMachineReconciler) createDropletInstance(ctx context.Context, vm
 
 	doKeyPair := &dropletv1alpha1.ImportKeyPair{}
 
-	err = r.Get(ctx, types.NamespacedName{Namespace: provisionNS, Name: vm.Annotations["importKeyPair"]}, doKeyPair)
+	err = r.Get(ctx, types.NamespacedName{Namespace: vm.Namespace, Name: vm.Annotations["importKeyPair"]}, doKeyPair)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (r *VirtualMachineReconciler) fetchDOInstance(ctx context.Context,
 	vm *hfv1.VirtualMachine) (status *hfv1.VirtualMachineStatus, err error) {
 	status = vm.Status.DeepCopy()
 	instance := &dropletv1alpha1.Instance{}
-	err = r.Get(ctx, types.NamespacedName{Name: vm.Name, Namespace: provisionNS}, instance)
+	err = r.Get(ctx, types.NamespacedName{Name: vm.Name, Namespace: vm.Namespace}, instance)
 	if err != nil {
 		r.Log.Error(fmt.Errorf("Error fetching Droplet Instance: "), vm.Name)
 		return status, err
@@ -188,7 +188,7 @@ func (r *VirtualMachineReconciler) doLivenessCheck(ctx context.Context, vm *hfv1
 	instance *dropletv1alpha1.Instance) (ready bool, err error) {
 	keySecret := &v1.Secret{}
 	var username, address string
-	err = r.Get(ctx, types.NamespacedName{Name: vm.Spec.KeyPair, Namespace: provisionNS}, keySecret)
+	err = r.Get(ctx, types.NamespacedName{Name: vm.Spec.KeyPair, Namespace: vm.Namespace}, keySecret)
 	if err != nil {
 		return ready, err
 	}

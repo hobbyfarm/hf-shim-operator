@@ -65,7 +65,7 @@ const (
 	defaultEquinixBillingCycle = "hourly"
 	defaultIPXEScriptURL       = "https://raw.githubusercontent.com/ibrokethecloud/custom_pxe/master/shell.ipxe"
 
-	instanceTypeAnnotation     = "hobbyfarm.io/instance-type"
+	instanceTypeAnnotation = "hobbyfarm.io/instance-type"
 )
 
 func init() {
@@ -76,11 +76,10 @@ func init() {
 
 }
 
-func (r *VirtualMachineReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *VirtualMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	var err error
 	//var ignoreVM bool
-	ctx := context.Background()
 	log := r.Log.WithValues("virtualmachine", req.NamespacedName)
 
 	vm := &hfv1.VirtualMachine{}
@@ -168,9 +167,9 @@ func (r *VirtualMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Fetch environment information //
 func (r *VirtualMachineReconciler) fetchEnvironment(ctx context.Context,
-	environmentName string) (environment *hfv1.Environment, err error) {
+	environmentName string, namespace string) (environment *hfv1.Environment, err error) {
 	environment = &hfv1.Environment{}
-	err = r.Get(ctx, types.NamespacedName{Name: environmentName}, environment)
+	err = r.Get(ctx, types.NamespacedName{Name: environmentName, Namespace: namespace}, environment)
 	if err != nil {
 		r.Log.Error(fmt.Errorf("Error fetching envrionment: "), environmentName)
 	}
@@ -179,9 +178,9 @@ func (r *VirtualMachineReconciler) fetchEnvironment(ctx context.Context,
 
 // Fetch VMTemplate information //
 func (r *VirtualMachineReconciler) fetchVMTemplate(ctx context.Context,
-	vmTemplateName string) (vmTemplate *hfv1.VirtualMachineTemplate, err error) {
+	vmTemplateName string, namespace string) (vmTemplate *hfv1.VirtualMachineTemplate, err error) {
 	vmTemplate = &hfv1.VirtualMachineTemplate{}
-	err = r.Get(ctx, types.NamespacedName{Name: vmTemplateName}, vmTemplate)
+	err = r.Get(ctx, types.NamespacedName{Name: vmTemplateName, Namespace: namespace}, vmTemplate)
 	if err != nil {
 		r.Log.Error(fmt.Errorf("Error fetching VMTemplate: "), vmTemplateName)
 	}
@@ -194,13 +193,13 @@ func (r *VirtualMachineReconciler) launchInstance(ctx context.Context,
 	vm *hfv1.VirtualMachine) (status *hfv1.VirtualMachineStatus,
 	err error) {
 	status = vm.Status.DeepCopy()
-	vmTemplate, err := r.fetchVMTemplate(ctx, vm.Spec.VirtualMachineTemplateId)
+	vmTemplate, err := r.fetchVMTemplate(ctx, vm.Spec.VirtualMachineTemplateId, vm.Namespace)
 	if err != nil {
 		status.Status = "Error Fetching VMTemplate"
 		return status, err
 	}
 
-	environment, err := r.fetchEnvironment(ctx, status.EnvironmentId)
+	environment, err := r.fetchEnvironment(ctx, status.EnvironmentId, vm.Namespace)
 	if err != nil {
 		status.Status = "Error fetching Environment"
 		return status, err
@@ -329,7 +328,7 @@ func (r *VirtualMachineReconciler) createImportKeyPair(ctx context.Context, vm *
 
 	pubKey := strings.TrimSpace(string(pubKeyByte))
 
-	env, err := r.fetchEnvironment(ctx, status.EnvironmentId)
+	env, err := r.fetchEnvironment(ctx, status.EnvironmentId, vm.Namespace)
 	if err != nil {
 		return status, err
 	}
