@@ -40,7 +40,6 @@ import (
 var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
-var existingCluster bool
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -54,10 +53,8 @@ var _ = BeforeSuite(func(done Done) {
 	logf.SetLogger(zap.New())
 
 	By("bootstrapping test environment")
-	existingCluster = true
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:  []string{filepath.Join("..", "config", "crd", "bases")},
-		UseExistingCluster: &existingCluster,
+		CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "bases")},
 	}
 
 	var err error
