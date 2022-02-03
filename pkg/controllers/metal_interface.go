@@ -32,7 +32,7 @@ func (r *VirtualMachineReconciler) createEquinixImportKeyPair(ctx context.Contex
 	keyPair := &equinixv1alpha1.ImportKeyPair{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vm.Name,
-			Namespace: provisionNS,
+			Namespace: vm.Namespace,
 		},
 	}
 
@@ -79,7 +79,7 @@ func (r *VirtualMachineReconciler) createEquinixInstance(ctx context.Context, vm
 	instance := &equinixv1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vm.Name,
-			Namespace: provisionNS,
+			Namespace: vm.Namespace,
 		},
 	}
 
@@ -91,7 +91,7 @@ func (r *VirtualMachineReconciler) createEquinixInstance(ctx context.Context, vm
 	vm.Annotations[instanceTypeAnnotation] = instanceType
 
 	equinixKeyPair := &equinixv1alpha1.ImportKeyPair{}
-	err = r.Get(ctx, types.NamespacedName{Namespace: provisionNS, Name: vm.Annotations["importKeyPair"]}, equinixKeyPair)
+	err = r.Get(ctx, types.NamespacedName{Namespace: vm.Namespace, Name: vm.Annotations["importKeyPair"]}, equinixKeyPair)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func (r *VirtualMachineReconciler) fetchEquinixInstance(ctx context.Context,
 	vm *hfv1.VirtualMachine) (status *hfv1.VirtualMachineStatus, err error) {
 	status = vm.Status.DeepCopy()
 	instance := &equinixv1alpha1.Instance{}
-	err = r.Get(ctx, types.NamespacedName{Name: vm.Name, Namespace: provisionNS}, instance)
+	err = r.Get(ctx, types.NamespacedName{Name: vm.Name, Namespace: vm.Namespace}, instance)
 	if err != nil {
 		r.Log.Error(fmt.Errorf("error fetching equinix instance: "), vm.Name)
 		return status, err
@@ -160,7 +160,7 @@ func (r *VirtualMachineReconciler) equinixLivenessCheck(ctx context.Context, vm 
 	instance *equinixv1alpha1.Instance) (ready bool, err error) {
 	keySecret := &v1.Secret{}
 	var username, address string
-	err = r.Get(ctx, types.NamespacedName{Name: vm.Spec.KeyPair, Namespace: provisionNS}, keySecret)
+	err = r.Get(ctx, types.NamespacedName{Name: vm.Spec.KeyPair, Namespace: vm.Namespace}, keySecret)
 	if err != nil {
 		return ready, err
 	}

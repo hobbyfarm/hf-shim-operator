@@ -33,7 +33,7 @@ func (r *VirtualMachineReconciler) createEC2ImportKeyPair(ctx context.Context, v
 	keyPair := &ec2v1alpha1.ImportKeyPair{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vm.Name,
-			Namespace: provisionNS,
+			Namespace: vm.Namespace,
 		},
 	}
 
@@ -65,7 +65,7 @@ func (r *VirtualMachineReconciler) createEC2Instance(ctx context.Context, vm *hf
 	instance := &ec2v1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vm.Name,
-			Namespace: provisionNS,
+			Namespace: vm.Namespace,
 		},
 	}
 
@@ -151,7 +151,7 @@ func (r *VirtualMachineReconciler) fetchEC2Instance(ctx context.Context,
 	vm *hfv1.VirtualMachine) (status *hfv1.VirtualMachineStatus, err error) {
 	instance := &ec2v1alpha1.Instance{}
 	status = vm.Status.DeepCopy()
-	err = r.Get(ctx, types.NamespacedName{Name: vm.Name, Namespace: provisionNS}, instance)
+	err = r.Get(ctx, types.NamespacedName{Name: vm.Name, Namespace: vm.Namespace}, instance)
 	if err != nil {
 		r.Log.Error(fmt.Errorf("Error fetching EC2 Instance: "), instance.Name)
 		return status, err
@@ -189,7 +189,7 @@ func (r *VirtualMachineReconciler) ec2LivenessCheck(ctx context.Context, vm *hfv
 	instance *ec2v1alpha1.Instance) (ready bool, err error) {
 	keySecret := &v1.Secret{}
 	var username, address string
-	err = r.Get(ctx, types.NamespacedName{Name: vm.Spec.KeyPair, Namespace: provisionNS}, keySecret)
+	err = r.Get(ctx, types.NamespacedName{Name: vm.Spec.KeyPair, Namespace: vm.Namespace}, keySecret)
 	if err != nil {
 		return ready, err
 	}
