@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/hobbyfarm/hf-shim-operator/pkg/utils"
+	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -13,6 +14,23 @@ import (
 
 	hfv1 "github.com/hobbyfarm/gargantua/pkg/apis/hobbyfarm.io/v1"
 	equinixv1alpha1 "github.com/hobbyfarm/metal-operator/pkg/api/v1alpha1"
+)
+
+/*
+Info needed in environment:
+ipxe_script_url
+billing_cycle
+cred_secret
+metro
+iso_url
+Info needed in env template mapping:
+instsanceType
+*/
+
+const (
+	defaultPassword   = "welcome2harvester"
+	defaultToken      = "token4harvester"
+	addressAnnotation = "elasticIP"
 )
 
 // createEquinixImportKeyPair will create the ssh key pair in the project
@@ -71,9 +89,9 @@ func (r *VirtualMachineReconciler) createEquinixInstance(ctx context.Context, vm
 	if !ok {
 		ipxeScriptURL = defaultIPXEScriptURL
 	}
-	region, ok := env.Spec.EnvironmentSpecifics["region"]
+	metro, ok := env.Spec.EnvironmentSpecifics["metro"]
 	if !ok {
-		return fmt.Errorf("no region found in env spec")
+		return fmt.Errorf("no metro found in env spec")
 	}
 
 	instance := &equinixv1alpha1.Instance{
@@ -88,7 +106,12 @@ func (r *VirtualMachineReconciler) createEquinixInstance(ctx context.Context, vm
 		instanceType = defaultEquinixInstanceType
 	}
 
+	isoURL, ok := env.Spec.EnvironmentSpecifics["iso_url"]
+	if !ok {
+		return fmt.Errorf("no iso_url found in env spec")
+	}
 	vm.Annotations[instanceTypeAnnotation] = instanceType
+	vm.Annotations["isoURL"] = isoURL
 
 	equinixKeyPair := &equinixv1alpha1.ImportKeyPair{}
 	err = r.Get(ctx, types.NamespacedName{Namespace: vm.Namespace, Name: vm.Annotations["importKeyPair"]}, equinixKeyPair)
@@ -101,7 +124,7 @@ func (r *VirtualMachineReconciler) createEquinixInstance(ctx context.Context, vm
 	}
 
 	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, instance, func() error {
-		instance.Spec.Facility = []string{region}
+		instance.Spec.Metro = metro
 		instance.Spec.Secret = credSecret
 		instance.Spec.OS = "custom_ipxe"
 		instance.Spec.BillingCycle = billingCycle
@@ -131,6 +154,16 @@ func (r *VirtualMachineReconciler) fetchEquinixInstance(ctx context.Context,
 		return status, err
 	}
 
+	// Additional step since we need vip info before the actual userData can be generated.
+	if instance.Status.Status == "elasticipcreated" {
+		err = r.patchEquinixInstance(ctx, vm, instance)
+		if err == nil {
+			// set a custom error to trigger a reconcile and force waiting on ssh being ready
+			err = fmt.Errorf("equinix instance patched. waiting for it to be ready")
+		}
+		return status, err
+	}
+
 	if len(instance.Status.PublicIP) > 0 {
 		status.PublicIP = instance.Status.PublicIP
 	}
@@ -147,7 +180,8 @@ func (r *VirtualMachineReconciler) fetchEquinixInstance(ctx context.Context,
 		// additional update for vm object to make it possible to ssh into instance
 		vm.Spec.SshUsername = instance.Status.InstanceID
 		status.Status = hfv1.VmStatusRunning
-		vm.Annotations["sshEndpoint"] = fmt.Sprintf("sos.%s.platformequinix.com", instance.Spec.Facility[0])
+		vm.Annotations["sshEndpoint"] = fmt.Sprintf("sos.%s.platformequinix.com", instance.Status.Facility)
+
 	}
 
 	if status.Status != hfv1.VmStatusRunning {
@@ -170,8 +204,60 @@ func (r *VirtualMachineReconciler) equinixLivenessCheck(ctx context.Context, vm 
 		return ready, fmt.Errorf("private_key not found in secret %s", keySecret.Name)
 	}
 	encodeKey := b64.StdEncoding.EncodeToString(privKey)
-	address = fmt.Sprintf("sos.%s.platformequinix.com:22", instance.Spec.Facility[0])
-	vm.Annotations["sshEndpoint"] = fmt.Sprintf("sos.%s.platformequinix.com", instance.Spec.Facility[0])
+	address = fmt.Sprintf("sos.%s.platformequinix.com:22", instance.Status.Facility)
+	vm.Annotations["sshEndpoint"] = fmt.Sprintf("sos.%s.platformequinix.com", instance.Status.Facility)
 	ready, err = utils.PerformLivenessCheck(address, username, encodeKey, "help")
 	return ready, err
+}
+
+func (r *VirtualMachineReconciler) patchEquinixInstance(ctx context.Context, vm *hfv1.VirtualMachine, instance *equinixv1alpha1.Instance) error {
+	vip, ok := instance.Annotations[addressAnnotation]
+	if !ok {
+		return fmt.Errorf("did not find elastic ip annotation on instance")
+	}
+
+	cloudInit, err := generateCloudInit(vip, fmt.Sprintf("%s-%s", instance.Name, instance.Namespace), vm.Annotations["isoURL"])
+	if err != nil {
+		return err
+	}
+	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, instance, func() error {
+		instance.Spec.UserData = cloudInit
+		instance.Status.Status = "patched"
+		return nil
+	}); err != nil {
+		r.Log.Error(fmt.Errorf("error patching instance instance "), instance.Name)
+		return err
+	}
+
+	return nil
+}
+
+func generateCloudInit(vip string, hostname string, isoURL string) (cloudInit string, err error) {
+	hc := make(map[string]interface{})
+	hc["token"] = defaultToken
+
+	// default OS configs
+	os := make(map[string]string)
+	os["hostname"] = hostname
+	os["password"] = defaultPassword
+	hc["os"] = os
+
+	//default install config
+	install := make(map[string]string)
+	install["device"] = "/dev/sda"
+	install["vip"] = vip
+	install["vip_mode"] = "static"
+	install["mode"] = "create"
+	install["iso_url"] = isoURL
+	install["debug"] = "true"
+
+	hc["install"] = install
+
+	out, err := yaml.Marshal(hc)
+	if err != nil {
+		return cloudInit, err
+	}
+
+	cloudInit = fmt.Sprintf("#cloud-config\n%s", string(out))
+	return cloudInit, nil
 }
