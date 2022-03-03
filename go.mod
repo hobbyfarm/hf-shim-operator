@@ -11,7 +11,7 @@ require (
 	github.com/go-logr/logr v1.2.0
 	github.com/hobbyfarm/ec2-operator v0.0.0-20210503053736-8f6f258f7b24
 	github.com/hobbyfarm/gargantua v1.0.0
-	github.com/hobbyfarm/metal-operator v0.1.3-rc1
+	github.com/hobbyfarm/metal-operator v0.1.3
 	github.com/ibrokethecloud/droplet-operator v0.0.0-20210505085619-7a30ebe921b2
 	github.com/ibrokethecloud/k3s-operator v0.0.0-20210110055129-f26a2d855653
 	github.com/onsi/ginkgo v1.16.5

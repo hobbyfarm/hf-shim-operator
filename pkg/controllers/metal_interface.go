@@ -4,9 +4,10 @@ import (
 	"context"
 	b64 "encoding/base64"
 	"fmt"
+	"gopkg.in/yaml.v2"
+	"strings"
 
 	"github.com/hobbyfarm/hf-shim-operator/pkg/utils"
-	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -113,6 +114,29 @@ func (r *VirtualMachineReconciler) createEquinixInstance(ctx context.Context, vm
 	vm.Annotations[instanceTypeAnnotation] = instanceType
 	vm.Annotations["isoURL"] = isoURL
 
+	if instance.Annotations == nil {
+		instance.Annotations = make(map[string]string)
+	}
+
+	instance.Annotations["waitforpatching"] = "true"
+
+	// query networking setup
+	networkMap := make(map[string][]string)
+	networkType, ok := env.Spec.TemplateMapping[vmTemplate.Name]["networkType"]
+	if ok {
+		interfaceName, ok := env.Spec.TemplateMapping[vmTemplate.Name]["networkInterface"]
+		if !ok {
+			return fmt.Errorf("a custom network type is specified but no interface name available. please check environment setup")
+		}
+
+		vlans, ok := env.Spec.TemplateMapping[vmTemplate.Name]["vlanIDS"]
+		var vlanList []string
+		if ok {
+			vlanList = strings.Split(vlans, ",")
+		}
+		networkMap[interfaceName] = vlanList
+	}
+
 	equinixKeyPair := &equinixv1alpha1.ImportKeyPair{}
 	err = r.Get(ctx, types.NamespacedName{Namespace: vm.Namespace, Name: vm.Annotations["importKeyPair"]}, equinixKeyPair)
 	if err != nil {
@@ -131,7 +155,8 @@ func (r *VirtualMachineReconciler) createEquinixInstance(ctx context.Context, vm
 		instance.Spec.IPXEScriptURL = ipxeScriptURL
 		instance.Spec.ProjectSSHKeys = []string{equinixKeyPair.Status.KeyPairID}
 		instance.Spec.Plan = instanceType
-
+		instance.Spec.NetworkType = networkType
+		instance.Spec.VLANAttachments = networkMap
 		if err := controllerutil.SetControllerReference(vm, instance, r.Scheme); err != nil {
 			r.Log.Error(err, "unable to set ownerReference for instance")
 			return err
