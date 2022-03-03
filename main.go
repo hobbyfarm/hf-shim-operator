@@ -36,15 +36,13 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
-	threads  int
+	scheme     = runtime.NewScheme()
+	setupLog   = ctrl.Log.WithName("setup")
+	threads    int
+	metricPort int
 )
 
 func init() {
-
-	flag.IntVar(&threads, "threads", 5, "concurrent reconciles to run")
-	flag.Parse()
 
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = dropletv1alpha1.AddToScheme(scheme)
@@ -57,10 +55,13 @@ func init() {
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
+
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.IntVar(&threads, "threads", 5, "concurrent reconciles to run")
+	flag.IntVar(&metricPort, "metricPort", 9443, "metric port to expose")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
