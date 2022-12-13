@@ -54,7 +54,7 @@ type VirtualMachineReconciler struct {
 	Threads int
 }
 
-var provisionNS = "hf"
+var provisionNS = "hobbyfarm"
 var defaultInstanceType = "t2.medium"
 
 const (
