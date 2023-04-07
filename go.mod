@@ -4,11 +4,12 @@ go 1.16
 
 replace (
 	github.com/hobbyfarm/ec2-operator => github.com/hobbyfarm/ec2-operator v0.1.7
-	k8s.io/client-go => k8s.io/client-go v0.21.1
+	github.com/hobbyfarm/metal-operator => github.com/ebauman/metal-operator v0.2.0
+	k8s.io/client-go => k8s.io/client-go v0.23.0
 )
 
 require (
-	github.com/go-logr/logr v0.4.0
+	github.com/go-logr/logr v1.2.0
 	github.com/hobbyfarm/ec2-operator v0.0.0-20210503053736-8f6f258f7b24
 	github.com/hobbyfarm/gargantua v1.0.0
 	github.com/hobbyfarm/metal-operator v0.0.0-20210908081856-4770843190f5
@@ -18,9 +19,9 @@ require (
 	github.com/onsi/gomega v1.17.0
 	github.com/sirupsen/logrus v1.8.1
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.21.1
-	k8s.io/apimachinery v0.21.1
+	k8s.io/api v0.23.0
+	k8s.io/apimachinery v0.23.0
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
-	sigs.k8s.io/controller-runtime v0.9.0
+	sigs.k8s.io/controller-runtime v0.11.0
 
 )

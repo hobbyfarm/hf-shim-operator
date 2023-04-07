@@ -145,14 +145,13 @@ func (r *VirtualMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 		vm.Status = *status
 	}
-	// if ignoreVM is not true.. we need to requeue to make sure we check the
-	// ssh works
-	err = r.Status().Update(ctx, vm)
+
+	err = r.Update(ctx, vm.DeepCopy())
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, r.Update(ctx, vm)
+	return ctrl.Result{}, r.Status().Update(ctx, vm)
 }
 
 func (r *VirtualMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -289,6 +288,9 @@ func (r *VirtualMachineReconciler) createSecret(ctx context.Context, vm *hfv1.Vi
 	status.Status = secretCreated
 	vm.Annotations["secret"] = "created"
 	vm.Annotations["secretName"] = secretName
+
+	err = r.Client.Update(ctx, vm)
+
 	return status, err
 }
 

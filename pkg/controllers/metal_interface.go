@@ -51,7 +51,14 @@ func (r *VirtualMachineReconciler) createEquinixImportKeyPair(ctx context.Contex
 	}
 
 	vm.Annotations["importKeyPair"] = keyPair.Name
+	if err = r.Update(ctx, vm); err != nil {
+		return status, err
+	}
+
 	status.Status = importKeyPairCreated
+
+	err = r.Status().Update(ctx, vm)
+
 	return status, nil
 }
 
@@ -74,6 +81,11 @@ func (r *VirtualMachineReconciler) createEquinixInstance(ctx context.Context, vm
 	region, ok := env.Spec.EnvironmentSpecifics["region"]
 	if !ok {
 		return fmt.Errorf("no region found in env spec")
+	}
+
+	metro, ok := env.Spec.EnvironmentSpecifics["metro"]
+	if !ok {
+		return fmt.Errorf("no metro found in env spec")
 	}
 
 	instance := &equinixv1alpha1.Instance{
@@ -103,11 +115,12 @@ func (r *VirtualMachineReconciler) createEquinixInstance(ctx context.Context, vm
 	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, instance, func() error {
 		instance.Spec.Facility = []string{region}
 		instance.Spec.Secret = credSecret
-		instance.Spec.OS = "custom_ipxe"
+		instance.Spec.OperatingSystem = "custom_ipxe"
 		instance.Spec.BillingCycle = billingCycle
 		instance.Spec.IPXEScriptURL = ipxeScriptURL
 		instance.Spec.ProjectSSHKeys = []string{equinixKeyPair.Status.KeyPairID}
 		instance.Spec.Plan = instanceType
+		instance.Spec.Metro = metro
 
 		if err := controllerutil.SetControllerReference(vm, instance, r.Scheme); err != nil {
 			r.Log.Error(err, "unable to set ownerReference for instance")
