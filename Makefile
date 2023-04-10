@@ -1,7 +1,8 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
-# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+IMG ?= hobbyfarm/hf-shim-operator:dev
+# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+CRD_OPTIONS ?= "crd:crdVersions=v1"
 ENVTEST_K8S_VERSION = 1.25.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
