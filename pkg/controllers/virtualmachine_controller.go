@@ -147,6 +147,11 @@ func (r *VirtualMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	// if ignoreVM is not true.. we need to requeue to make sure we check the
 	// ssh works
+	err = r.Status().Update(ctx, vm)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, r.Update(ctx, vm)
 }
 
