@@ -19,7 +19,9 @@ package controllers
 import (
 	"context"
 	b64 "encoding/base64"
+	errors2 "errors"
 	"fmt"
+	"k8s.io/client-go/util/retry"
 	"os"
 	"strings"
 	"time"
@@ -77,8 +79,6 @@ func init() {
 }
 
 func (r *VirtualMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-
-	var err error
 	//var ignoreVM bool
 	log := r.Log.WithValues("virtualmachine", req.NamespacedName)
 
@@ -115,44 +115,40 @@ func (r *VirtualMachineReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		log.Info("VM deleted")
 	}
 
+	var reconcileErr error
 	if vm.ObjectMeta.DeletionTimestamp.IsZero() {
 		// provisioning logic
 		switch state := vm.Status.Status; state {
 		case hfv1.VmStatusRFP:
-			status, err = r.createSecret(ctx, vm)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
+			status, reconcileErr = r.createSecret(ctx, vm)
 		case secretCreated:
-			status, err = r.createImportKeyPair(ctx, vm)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
+			status, reconcileErr = r.createImportKeyPair(ctx, vm)
 		case importKeyPairCreated:
-			status, err = r.launchInstance(ctx, vm)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
+			status, reconcileErr = r.launchInstance(ctx, vm)
 		case hfv1.VmStatusProvisioned:
-			status, err = r.fetchVMDetails(ctx, vm)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
+			status, reconcileErr = r.fetchVMDetails(ctx, vm)
 		case hfv1.VmStatusRunning:
 			return ctrl.Result{}, nil
 		case "default":
 			return ctrl.Result{Requeue: false}, fmt.Errorf("VM in an undefined state. Ignoring")
 		}
-		vm.Status = *status
-	}
-	// if ignoreVM is not true.. we need to requeue to make sure we check the
-	// ssh works
-	err = r.Status().Update(ctx, vm.DeepCopy())
-	if err != nil {
-		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, r.Update(ctx, vm)
+	updateErr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		if err := r.Update(ctx, vm); err != nil {
+			return err
+		}
+
+		vm.Status = *status
+
+		if err := r.Status().Update(ctx, vm); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return ctrl.Result{}, errors2.Join(updateErr, reconcileErr)
 }
 
 func (r *VirtualMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
