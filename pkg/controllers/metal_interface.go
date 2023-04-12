@@ -150,7 +150,7 @@ func (r *VirtualMachineReconciler) createEquinixInstance(ctx context.Context, vm
 	if _, err = controllerutil.CreateOrUpdate(ctx, r.Client, instance, func() error {
 		instance.Spec.Metro = metro
 		instance.Spec.Secret = credSecret
-		instance.Spec.OS = "custom_ipxe"
+		instance.Spec.OperatingSystem = "custom_ipxe"
 		instance.Spec.BillingCycle = billingCycle
 		instance.Spec.IPXEScriptURL = ipxeScriptURL
 		instance.Spec.ProjectSSHKeys = []string{equinixKeyPair.Status.KeyPairID}
