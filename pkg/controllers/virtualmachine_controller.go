@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"k8s.io/client-go/util/workqueue"
@@ -58,6 +59,8 @@ type VirtualMachineReconciler struct {
 
 var provisionNS = "hobbyfarm"
 var defaultInstanceType = "t2.medium"
+
+var lock = &sync.Mutex{}
 
 const (
 	secretCreated              = "SecretCreated"
